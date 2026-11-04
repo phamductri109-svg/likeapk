@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Tăng Like & Quản Trị</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body { 
+            background: linear-gradient(135deg, #1e3c72, #2a5298); 
+            color: #333; 
+            padding: 20px; 
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container { 
+            width: 100%; 
+            max-width: 550px; 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(8px);
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3); 
+        }
+
+        h2 { text-align: center; color: #007bff; margin-bottom: 20px; }
+        
+        .section { display: none; margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: rgba(250, 250, 250, 0.95); }
+        .section.active { display: block; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; }
+        
+        button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; font-size: 15px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+        button:hover { background: #0056b3; }
+        .btn-secondary { background: #6c757d; margin-top: 5px; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+
+        .user-info { display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 10px 15px; border-radius: 5px; margin-bottom: 15px; font-size: 14px; }
+        
+        /* Khung JSON đẹp mắt */
+        .json-output-container { position: relative; margin-top: 15px; }
+        pre.json-display { background-color: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 13px; overflow-x: auto; max-height: 300px; text-align: left; }
+        .json-key { color: #9cdcfe; }
+        .json-string { color: #ce9178; }
+        .json-number { color: #b5cea8; }
+        .json-boolean { color: #569cd6; }
+        .json-null { color: #569cd6; }
+
+        .btn-copy { position: absolute; top: 10px; right: 10px; background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; width: auto; }
+        .btn-copy:hover { background: #218838; }
+        
+        .admin-contact {
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px dashed #ccc;
+            font-size: 14px;
+        }
+        .admin-contact a {
+            color: #0088cc;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .admin-contact a:hover {
+            text-decoration: underline;
+        }
+
+        .error-msg { color: #dc3545; font-size: 13px; margin-top: 5px; }
+        .success-msg { color: #28a745; font-size: 13px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Hệ Thống Tăng Like</h2>
+
+    <!-- 1. KHU VỰC ĐĂNG NHẬP / ĐĂNG KÝ -->
+    <div id="authSection" class="section active">
+        <h3>Đăng Nhập / Đăng Ký</h3>
+        <div class="form-group" style="margin-top: 10px;">
+            <label>Tên tài khoản (Username):</label>
+            <input type="text" id="usernameInput" placeholder="Nhập username...">
+        </div>
+        <div class="form-group">
+            <label>Mật khẩu:</label>
+            <input type="password" id="passwordInput" placeholder="Nhập mật khẩu...">
+        </div>
+        <button onclick="handleLoginRegister()">Đăng Nhập / Tạo Tài Khoản</button>
+        <p id="authError" class="error-msg"></p>
+    </div>
+
+    <!-- 2. KHU VỰC CHÍNH (DÀNH CHO USER) -->
+    <div id="mainSection" class="section">
+        <div class="user-info">
+            <div>Tài khoản: <b id="lblUsername"></b> | Lượt: <b id="lblCredits" style="color: #28a745;">0</b></div>
+            <button onclick="logout()" class="btn-danger" style="width: auto; padding: 5px 10px; font-size: 12px;">Đăng xuất</button>
+        </div>
+
+        <div class="form-group">
+            <label>Nhập ID (UID) cần tăng Like:</label>
+            <input type="text" id="targetUid" placeholder="Ví dụ: 185062076">
+        </div>
+        <button onclick="handleRunLike()">Chạy Like</button>
+
+        <!-- Khung hiển thị JSON kết quả -->
+        <div class="json-output-container">
+            <button class="btn-copy" onclick="copyJsonData()">Sao chép</button>
+            <pre id="jsonResult" class="json-display">// Kết quả JSON trả về từ API sẽ hiển thị ở đây...</pre>
+        </div>
+
+        <button onclick="openChangePasswordModal()" class="btn-secondary">Đổi mật khẩu</button>
+        <button id="btnAdminPanel" onclick="showAdminPanel()" class="btn-secondary" style="background: #17a2b8; display: none;">Mở Bảng Admin</button>
+    </div>
+
+    <!-- 3. KHU VỰC ĐỔI MẬT KHẨU -->
+    <div id="passwordSection" class="section">
+        <h3>Đổi Mật Khẩu</h3>
+        <div class="form-group" style="margin-top: 10px;">
+            <label>Mật khẩu mới:</label>
+            <input type="password" id="newPasswordInput" placeholder="Nhập mật khẩu mới...">
+        </div>
+        <button onclick="handleChangePassword()">Xác nhận đổi</button>
+        <button onclick="backToMain()" class="btn-secondary">Quay lại</button>
+        <p id="passMsg" class="success-msg"></p>
+    </div>
+
+    <!-- 4. KHU VỰC ADMIN (CỘNG LƯỢT) -->
+    <div id="adminSection" class="section" style="border-color: #17a2b8;">
+        <h3 style="color: #17a2b8;">Bảng Quản Trị (Admin)</h3>
+        <div class="form-group" style="margin-top: 10px;">
+            <label>Username cần cộng lượt:</label>
+            <input type="text" id="adminTargetUser" placeholder="Nhập username người dùng...">
+        </div>
+        <div class="form-group">
+            <label>Số lượng lượt muốn cộng:</label>
+            <input type="number" id="adminAddCredits" placeholder="Ví dụ: 10" value="10">
+        </div>
+        <button onclick="handleAdminAddCredits()" style="background: #17a2b8;">Cộng Lượt</button>
+        <button onclick="backToMain()" class="btn-secondary">Quay lại</button>
+        <p id="adminMsg" class="success-msg"></p>
+    </div>
+
+    <div class="admin-contact">
+        Liên hệ Admin Telegram: <a href="https://t.me/Daiproject" target="_blank">@Daiproject</a> (Mua lượt / Hỗ trợ)
+    </div>
+</div>
+
+<script>
+    function getDatabase() {
+        let db = localStorage.getItem('app_db');
+        if (!db) {
+            db = {
+                users: {
+                    "admin": { pass: "123456", credits: 999, isAdmin: true }
+                }
+            };
+            localStorage.setItem('app_db', JSON.stringify(db));
+        }
+        return JSON.parse(db);
+    }
+
+    function saveDatabase(db) {
+        localStorage.setItem('app_db', JSON.stringify(db));
+    }
+
+    let currentUser = null;
+
+    function handleLoginRegister() {
+        const user = document.getElementById('usernameInput').value.trim();
+        const pass = document.getElementById('passwordInput').value.trim();
+        const errEl = document.getElementById('authError');
+
+        if (!user || !pass) {
+            errEl.innerText = "Vui lòng nhập đầy đủ tên tài khoản và mật khẩu!";
+            return;
+        }
+
+        let db = getDatabase();
+
+        if (db.users[user]) {
+            if (db.users[user].pass === pass) {
+                currentUser = user;
+                initDashboard();
+            } else {
+                errEl.innerText = "Mật khẩu không chính xác!";
+            }
+        } else {
+            db.users[user] = { pass: pass, credits: 0, isAdmin: false };
+            saveDatabase(db);
+            currentUser = user;
+            alert("Tạo tài khoản thành công!");
+            initDashboard();
+        }
+    }
+
+    function initDashboard() {
+        document.getElementById('authSection').classList.remove('active');
+        document.getElementById('mainSection').classList.add('active');
+        
+        let db = getDatabase();
+        let userData = db.users[currentUser];
+
+        document.getElementById('lblUsername').innerText = currentUser;
+        document.getElementById('lblCredits').innerText = userData.credits;
+
+        if (userData.isAdmin) {
+            document.getElementById('btnAdminPanel').style.display = 'block';
+        } else {
+            document.getElementById('btnAdminPanel').style.display = 'none';
+        }
+    }
+
+    function logout() {
+        currentUser = null;
+        document.getElementById('mainSection').classList.remove('active');
+        document.getElementById('adminSection').classList.remove('active');
+        document.getElementById('passwordSection').classList.remove('active');
+        document.getElementById('authSection').classList.add('active');
+        document.getElementById('usernameInput').value = '';
+        document.getElementById('passwordInput').value = '';
+        document.getElementById('authError').innerText = '';
+    }
+
+    async function handleRunLike() {
+        let db = getDatabase();
+        let userData = db.users[currentUser];
+        const resultContainer = document.getElementById('jsonResult');
+        const uid = document.getElementById('targetUid').value.trim();
+
+        if (!uid) {
+            resultContainer.innerHTML = '<span style="color: #ff6b6b;">Vui lòng nhập ID cần tăng like!</span>';
+            return;
+        }
+
+        if (userData.credits <= 0 && !userData.isAdmin) {
+            resultContainer.innerHTML = '<span style="color: #ff6b6b;">❌ Bạn đã hết lượt! Liên hệ Telegram @Daiproject để nạp thêm.</span>';
+            return;
+        }
+
+        resultContainer.innerHTML = 'Đang gọi API lấy dữ liệu JSON, vui lòng chờ...';
+
+        const targetUrl = `https://likenew-tau.vercel.app/like?uid=${uid}`;
+        const proxies = [
+            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+            `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(targetUrl)}`
+        ];
+
+        let success = false;
+        let actualData = null;
+
+        for (let proxyUrl of proxies) {
+            try {
+                const response = await fetch(proxyUrl);
+                if (response.ok) {
+                    actualData = await response.json();
+                    success = true;
+                    break;
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+
+        if (!success) {
+            try {
+                const response = await fetch(targetUrl);
+                actualData = await response.json();
+                success = true;
+            } catch (e) {}
+        }
+
+        if (success && actualData) {
+            resultContainer.innerHTML = syntaxHighlight(actualData);
+
+            if (!userData.isAdmin) {
+                userData.credits -= 1;
+                db.users[currentUser] = userData;
+                saveDatabase(db);
+                document.getElementById('lblCredits').innerText = userData.credits;
+            }
+        } else {
+            resultContainer.innerHTML = `<span style="color: #ff6b6b;">❌ Không thể lấy kết quả JSON từ API. Vui lòng kiểm tra lại kết nối mạng.</span>`;
+        }
+    }
+
+    function syntaxHighlight(json) {
+        if (typeof json != 'string') {
+            json = JSON.stringify(json, undefined, 2);
+        }
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+            let cls = 'json-number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'json-key';
+                } else {
+                    cls = 'json-string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'json-boolean';
+            } else if (/null/.test(match)) {
+                cls = 'json-null';
+            }
+            return '<span class="' + cls + '">' + match + '</span>';
+        });
+    }
+
+    function copyJsonData() {
+        const textToCopy = document.getElementById('jsonResult').innerText;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            alert('Đã sao chép kết quả JSON!');
+        });
+    }
+
+    function openChangePasswordModal() {
+        document.getElementById('mainSection').classList.remove('active');
+        document.getElementById('passwordSection').classList.add('active');
+        document.getElementById('passMsg').innerText = '';
+        document.getElementById('newPasswordInput').value = '';
+    }
+
+    function handleChangePassword() {
+        const newPass = document.getElementById('newPasswordInput').value.trim();
+        const msgEl = document.getElementById('passMsg');
+        if (!newPass) {
+            msgEl.style.color = '#dc3545';
+            msgEl.innerText = "Vui lòng nhập mật khẩu mới!";
+            return;
+        }
+
+        let db = getDatabase();
+        db.users[currentUser].pass = newPass;
+        saveDatabase(db);
+
+        msgEl.style.color = '#28a745';
+        msgEl.innerText = "Đổi mật khẩu thành công!";
+    }
+
+    function showAdminPanel() {
+        document.getElementById('mainSection').classList.remove('active');
+        document.getElementById('adminSection').classList.add('active');
+        document.getElementById('adminMsg').innerText = '';
+    }
+
+    function handleAdminAddCredits() {
+        const targetUser = document.getElementById('adminTargetUser').value.trim();
+        const amount = parseInt(document.getElementById('adminAddCredits').value);
+        const msgEl = document.getElementById('adminMsg');
+
+        let db = getDatabase();
+
+        if (!db.users[targetUser]) {
+            msgEl.style.color = '#dc3545';
+            msgEl.innerText = "Tên tài khoản không tồn tại!";
+            return;
+        }
+
+        if (isNaN(amount) || amount <= 0) {
+            msgEl.style.color = '#dc3545';
+            msgEl.innerText = "Số lượng lượt không hợp lệ!";
+            return;
+        }
+
+        db.users[targetUser].credits += amount;
+        saveDatabase(db);
+
+        msgEl.style.color = '#28a745';
+        msgEl.innerText = `Đã cộng thành công ${amount} lượt cho: @${targetUser}`;
+    }
+
+    function backToMain() {
+        document.getElementById('passwordSection').classList.remove('active');
+        document.getElementById('adminSection').classList.remove('active');
+        document.getElementById('mainSection').classList.add('active');
+        initDashboard();
+    }
+</script>
+
+</body>
+          </html>
+          
